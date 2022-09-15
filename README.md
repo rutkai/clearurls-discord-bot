@@ -29,5 +29,12 @@ It is very straightforward to host this yourself. If you do, I would love to kno
 6. Copy the token from the Bot tab and paste `TOKEN=[your clipboard here]` into a file named `.env`
 7. Run with `python main.py`
 
+## Docker container
+
+After getting the developer token (see Self-Hosting) run:
+
+    docker build -t clearurls-discord-bot .
+    docker run -e TOKEN=your-token clearurls-discord-bot
+
 ## Privacy Policy
 I collect zero information.

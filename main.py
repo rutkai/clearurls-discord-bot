@@ -7,7 +7,7 @@ from unalix import clear_url
 class MyClient(discord.Client):
     async def on_message(self, message):
         if message.author == client.user:
-            permissions = message.channel.guild.me.permissions_in(message.channel)
+            permissions = message.channel.guild.me.guild_permissions
             # Suppress embeds for bot messages to avoid visual clutter
             if permissions.manage_messages:
                 await message.edit(suppress=True)
@@ -30,7 +30,7 @@ class MyClient(discord.Client):
     async def on_reaction_add(self, reaction, user):
         message = reaction.message
         # Delete message if original author clicked on trash reaction
-        permissions = message.channel.guild.me.permissions_in(message.channel)
+        permissions = message.channel.guild.me.guild_permissions
         if not permissions.manage_messages or message.reference is None:
             return
         channel = client.get_channel(message.reference.channel_id)
@@ -39,5 +39,7 @@ class MyClient(discord.Client):
             await reaction.message.delete()
 
 load_dotenv()
-client = MyClient()
+intents = discord.Intents.default()
+intents.message_content = True
+client = MyClient(intents=intents)
 client.run(os.environ['TOKEN'])
