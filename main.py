@@ -21,9 +21,10 @@ class MyClient(discord.Client):
         urls = re.findall('(?P<url>https?://[^\s]+)', message.content)
         cleaned = []
         for url in urls:
-
-            if clear_url(url) != url:
-                cleaned.append(clear_url(url))
+            tracked_url = self.follow_redirect(url)
+            cleaned_url = clear_url(tracked_url)
+            if cleaned_url != url:
+                cleaned.append(cleaned_url)
 
         # Send message and add reactions
         if cleaned:
