@@ -33,8 +33,7 @@ It is very straightforward to host this yourself. If you do, I would love to kno
 
 After getting the developer token (see Self-Hosting) run:
 
-    docker build -t clearurls-discord-bot .
-    docker run -e TOKEN=your-token clearurls-discord-bot
+    docker run -e TOKEN=your-bot-token rutkai/clearurls-discord-bot:latest
 
 ## Privacy Policy
 I collect zero information.
