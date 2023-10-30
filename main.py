@@ -23,7 +23,7 @@ class MyClient(discord.Client):
         for url in urls:
             tracked_url = self.follow_redirect(url)
             cleaned_url = clear_url(tracked_url)
-            if cleaned_url != url:
+            if cleaned_url != tracked_url:
                 cleaned.append(cleaned_url)
 
         # Send message and add reactions
