@@ -16,6 +16,7 @@ class MyClient(discord.Client):
                 # Add :wastebasket: emoji for easy deletion if necessary
                 if permissions.add_reactions and permissions.read_message_history:
                     await message.add_reaction('🗑')
+            return
 
         # Extract links and clean
         urls = re.findall('(?P<url>https?://[^\s]+)', message.content)
