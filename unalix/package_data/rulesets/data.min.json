@@ -1971,6 +1971,14 @@
             "redirections": [
                 "^https?:\\/\\/redirect\\.viglink\\.com\\/.*?u=([^&]+)"
             ]
+        },
+        "nordwolle.com": {
+            "urlPattern": "^https?:\\/\\/(?:[a-z0-9-]+\\.)*?nordwolle\\.com",
+            "rules": [
+                "_sc",
+                "_sid",
+                "_ss"
+            ]
         }
     }
 }
