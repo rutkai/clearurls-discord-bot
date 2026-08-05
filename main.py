@@ -1,63 +1,108 @@
+import asyncio
 import os
 import re
 import discord
 import requests
 from dotenv import load_dotenv
 from unalix import clear_url
+from prometheus_client import start_http_server, Summary, Counter, Gauge
 
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
 
-class MyClient(discord.Client):
-    async def on_message(self, message):
-        if message.author == client.user:
-            permissions = message.channel.guild.me.guild_permissions
-            # Suppress embeds for bot messages to avoid visual clutter
-            if permissions.manage_messages:
-                await message.edit(suppress=True)
-                # Add :wastebasket: emoji for easy deletion if necessary
-                if permissions.add_reactions and permissions.read_message_history:
-                    await message.add_reaction('🗑')
-            return
+process_message_time = Summary('process_message_time', 'Time spent processing message')
+process_react_time = Summary('process_react_time', 'Time spent processing react')
+messages = Counter('messages', 'Total number of messages processed')
+cleaned_messages = Counter('cleaned_messages', 'Number of messages with tracking links cleaned')
+deleted_messages = Counter('deleted_messages', 'Number of cleaned messages that were deleted with the trash react')
+servers = Gauge('servers', 'Number of servers the bot is in')
+members = Gauge('members', 'Combined member count of all servers the bot is in')
 
+def follow_redirect(url):
+    for _ in range(5):
+        try:
+            new_url = requests.head(url, allow_redirects=True).url
+            if new_url == url:
+                return url
+            url = new_url
+        except requests.exceptions.ConnectionError:
+            return url
+
+    return url
+
+async def count_servers_members():
+    while True:
+        servers.set(len(client.guilds))
+        members.set(sum([guild.member_count for guild in client.guilds]))
+        await asyncio.sleep(60)
+
+@client.event
+async def on_ready():
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='for tracking links'))
+    asyncio.create_task(count_servers_members())
+
+@process_message_time.time()
+@client.event
+async def on_message(message):
+    messages.inc()
+    permissions = message.channel.permissions_for(message.guild.me)
+    if message.author == client.user:
+        # Suppress embeds for bot messages if unable to suppress embeds for original message to avoid visual clutter
+        if not permissions.manage_messages:
+            await message.edit(suppress=True)
+        # Add :wastebasket: emoji for easy deletion if necessary
+        if permissions.add_reactions and permissions.read_message_history and permissions.manage_messages:
+            await message.add_reaction('🗑')
+    # Though this else is not necessary since the bot should never send
+    # links with tracking parameters, include it anyways to be safe
+    # against infinite recursion
+    else:
         # Extract links and clean
         urls = re.findall('(?P<url>https?://[^\s]+)', message.content)
         cleaned = []
         for url in urls:
-            tracked_url = self.follow_redirect(url)
+            # Resolve shorteners first so tracking parameters behind them are also stripped
+            tracked_url = follow_redirect(url)
             cleaned_url = clear_url(tracked_url)
-            if cleaned_url != tracked_url:
+            # Ignore trailing & in comparing, as these are not used for tracking
+            # This is to fix a bug where right clicking on an image in the Discord *app* (not browser) > Copy Link on context menu would create a link ending in &
+            # Pasting this link into Discord would then trigger the bot since the cleaned link removed the &, even though the image link didn't have tracking parameters
+            if cleaned_url.strip('&') != tracked_url.strip('&'):
                 cleaned.append(cleaned_url)
 
         # Send message and add reactions
         if cleaned:
+            # Suppress embeds for original message to avoid visual clutter
+            if permissions.manage_messages:
+                await message.edit(suppress=True)
             text = 'It appears that you have sent one or more links with tracking parameters. Below are the same links with those fields removed:\n' + '\n'.join(cleaned)
             await message.reply(text, mention_author=False)
+            cleaned_messages.inc()
 
-    async def on_reaction_add(self, reaction, user):
-        message = reaction.message
-        # Delete message if original author clicked on trash reaction
-        permissions = message.channel.guild.me.guild_permissions
-        if not permissions.manage_messages or message.reference is None:
-            return
-        channel = client.get_channel(message.reference.channel_id)
-        original = await channel.fetch_message(message.reference.message_id)
-        if message.author == client.user and user == original.author and reaction.emoji == '🗑':
-            await reaction.message.delete()
+@process_react_time.time()
+@client.event
+async def on_raw_reaction_add(payload):
+    # Delete messages if the original sender clicks the trash can react
+    if payload.emoji.name != '🗑':
+        return
 
-    def follow_redirect(self, url):
-        for _ in range(5):
-            try:
-                new_url = requests.head(url, allow_redirects=True).url
-                if new_url == url:
-                    return url
-                url = new_url
-            except requests.exceptions.ConnectionError:
-                return url
+    channel = await client.fetch_channel(payload.channel_id)
+    message = await channel.fetch_message(payload.message_id)
 
-        return url
+    if message.reference is None or message.author != client.user:
+        return
 
+    original_channel = await client.fetch_channel(message.reference.channel_id)
+    original_message = await original_channel.fetch_message(message.reference.message_id)
+    user = await client.fetch_user(payload.user_id)
+    permissions = message.channel.permissions_for(message.guild.me)
 
-load_dotenv()
-intents = discord.Intents.default()
-intents.message_content = True
-client = MyClient(intents=intents)
-client.run(os.environ['TOKEN'])
+    if permissions.manage_messages and original_message.author == user:
+        await message.delete()
+        deleted_messages.inc()
+    
+if __name__ == '__main__':
+    start_http_server(8000)
+    load_dotenv()
+    client.run(os.environ['TOKEN'])

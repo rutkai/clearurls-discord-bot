@@ -5,7 +5,7 @@
 
 Have you ever noticed those `utm` and `fbclid` snippets in links? Those are used to track your activity and unnecessary for the site to work. This bot uses the [Unalix](https://github.com/AmanoTeam/Unalix) library that is based off of the popular [ClearURLs](https://github.com/ClearURLs/Addon) browser extension to automatically strip out such parameters from links. This keeps URLs short and readable while enhancing the privacy of your server's members.
 
-![demo.png](demo.png)
+![./docs/demo.png](./docs/demo.png)
 
 This version doesn't have a hosted instance, but you can host it yourself. See [Self-Hosting](#self-hosting) for instructions.
 
@@ -13,7 +13,7 @@ This version doesn't have a hosted instance, but you can host it yourself. See [
 The bot's permissions system is designed to be granular, minimal, and gracefully degrade in the absence of those unnecessary for basic function.
 
 - *Read Messages* and *Send Messages* are **required** to perform the cleaning.
-- *Manage Messages* is **recommended** so the bot can suppress embeds on its own links to reduce visual clutter.
+- *Manage Messages* is **recommended** so the bot can suppress embeds on the original message's links to reduce visual clutter. Otherwise, it will suppress embeds on its own links.
 - *Read Message History* and *Add Reactions* are **optional** for the original poster to easily delete the bot's replies with the `:wastebasket:` emoji. Note that these two permissions are on by default for `@everyone`. If you want to disable react-to-remove, turn off these permissions for `@everyone` and give every human in your server a new role. This functionality also **requires** *Manage Messages* for deletion.
 
 ## Self-Hosting
@@ -33,5 +33,8 @@ After getting the developer token (see Self-Hosting) run:
 
     docker run -e TOKEN=your-bot-token rutkai/clearurls-discord-bot:latest
 
+## Terms of Service
+Do unto others as you would have them do unto you.
+
 ## Privacy Policy
-I collect zero information.
+I collect no personal information. The only information recorded is the aggregated statistics on the [metrics dashboard](https://danielzting.github.io/clearurls-discord-bot/metrics/).
