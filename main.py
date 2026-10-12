@@ -22,11 +22,11 @@ members = Gauge('members', 'Combined member count of all servers the bot is in')
 def follow_redirect(url):
     for _ in range(5):
         try:
-            new_url = requests.head(url, allow_redirects=True).url
+            new_url = requests.head(url, allow_redirects=True, timeout=(5, 10)).url
             if new_url == url:
                 return url
             url = new_url
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException:
             return url
 
     return url
@@ -63,7 +63,8 @@ async def on_message(message):
         cleaned = []
         for url in urls:
             # Resolve shorteners first so tracking parameters behind them are also stripped
-            tracked_url = follow_redirect(url)
+            # requests is blocking, so run it in a thread to keep the event loop (and Discord heartbeat) alive
+            tracked_url = await asyncio.to_thread(follow_redirect, url)
             cleaned_url = clear_url(tracked_url)
             # Ignore trailing & in comparing, as these are not used for tracking
             # This is to fix a bug where right clicking on an image in the Discord *app* (not browser) > Copy Link on context menu would create a link ending in &
